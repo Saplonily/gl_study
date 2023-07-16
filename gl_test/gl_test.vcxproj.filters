@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Text Include="fsh.txt">
+      <Filter>resource</Filter>
+    </Text>
+    <Text Include="vsh.txt">
+      <Filter>resource</Filter>
+    </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="render_main.cpp" />
+    <ClCompile Include="shader.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="thridparty_impl.cpp">
+      <Filter>thirdparty</Filter>
+    </ClCompile>
+    <ClCompile Include="cube_vertices.cpp" />
+    <ClCompile Include="D:\devbinlib\glad\Debug\src\glad_debug.c">
+      <Filter>thirdparty\glad</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\devbinlib\glad\Release\src\glad_release.c">
+      <Filter>thirdparty\glad</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\ProjectsComm\imgui\imgui_tables.cpp">
+      <Filter>thirdparty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\ProjectsComm\imgui\imgui_widgets.cpp">
+      <Filter>thirdparty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\ProjectsComm\imgui\imgui.cpp">
+      <Filter>thirdparty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\ProjectsComm\imgui\imgui_demo.cpp">
+      <Filter>thirdparty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\ProjectsComm\imgui\imgui_draw.cpp">
+      <Filter>thirdparty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\ProjectsComm\imgui\backends\imgui_impl_opengl3.cpp">
+      <Filter>thirdparty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\ProjectsComm\imgui\backends\imgui_impl_glfw.cpp">
+      <Filter>thirdparty\imgui</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="shader.h" />
+    <ClInclude Include="win_res.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="common_math.h" />
+    <ClInclude Include="proj_imgui.h">
+      <Filter>thirdparty\imgui</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="thirdparty">
+      <UniqueIdentifier>{f180d37e-3f19-4c9c-86d6-41aee5e00a6b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resource">
+      <UniqueIdentifier>{00b8bcc8-37ff-42f5-ae81-4942794b313c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="proxy">
+      <UniqueIdentifier>{0bf01145-b490-43db-a50d-df7625939b9b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\glad">
+      <UniqueIdentifier>{7e92f5a9-d30e-443b-bbda-86c10012cb82}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\imgui">
+      <UniqueIdentifier>{60bb02eb-e794-43d1-bc96-04cc2bf8bfce}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="gl_test.rc">
+      <Filter>resource</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="testp.png">
+      <Filter>resource</Filter>
+    </Image>
+  </ItemGroup>
+</Project>
