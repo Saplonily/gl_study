@@ -10,7 +10,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
-    <ClCompile Include="render_main.cpp" />
     <ClCompile Include="shader.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="thridparty_impl.cpp">
@@ -44,6 +43,10 @@
     <ClCompile Include="D:\ProjectsComm\imgui\backends\imgui_impl_glfw.cpp">
       <Filter>thirdparty\imgui</Filter>
     </ClCompile>
+    <ClCompile Include="D:\ProjectsComm\imgui\misc\cpp\imgui_stdlib.cpp">
+      <Filter>thirdparty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="my_main_loop.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -54,6 +57,7 @@
     <ClInclude Include="proj_imgui.h">
       <Filter>thirdparty\imgui</Filter>
     </ClInclude>
+    <ClInclude Include="main_loop.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="thirdparty">

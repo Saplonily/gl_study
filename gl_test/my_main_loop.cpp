@@ -1,72 +1,64 @@
 #include "pch.h"
+#include "main_loop.h"
+#include "win_res.h"
 #include "shader.h"
 #include "resource.h"
-#include "common_math.h"
-#include "win_res.h"
 #include "proj_imgui.h"
-#include <stb_image.h>
-#include <thread>
-#include <math.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <sstream>
-namespace cm = common_math;
+#include <stb_image.h>
+#include <thread>
+#include <chrono>
+
 namespace ggbs {
 
-using uint = unsigned int;
 extern float vertices[180];
-
-static std::unique_ptr<Shader> shader;
-static uint texId, vaoId, vboId;
-static int counter = 0;
-static int texWidth, texHeight;
-static int wWidth, wHeight;
-static double mx, my;
 
 #pragma region callbacks
 void ErrCallback(int code, const char* msg)
 {
 	std::cout << "=== glfw ERROR " << code << " ===" << std::endl;
 	std::cout << "=== " << msg << std::endl;
+
 }
 
 void FramebufferSizeCallback(GLFWwindow* win, int width, int height)
 {
 	glViewport(0, 0, width, height);
-	wWidth = width; wHeight = height;
+	main_loop::get_ins()->wWidth = width;
+	main_loop::get_ins()->wHeight = height;
 }
 
 void CursorPosCallback(GLFWwindow* win, double x, double y)
 {
-	mx = x; my = y;
+	main_loop::get_ins()->mx = x;
+	main_loop::get_ins()->my = y;
 }
 #pragma endregion
 
-GLFWwindow* init()
+main_loop* main_loop::instance = nullptr;
+
+main_loop* main_loop::get_ins() { return main_loop::instance; }
+
+void main_loop::init()
 {
+	SetConsoleOutputCP(CP_UTF8);
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-	glfwWindowHint(GLFW_SAMPLES, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+	glfwWindowHint(GLFW_SAMPLES, 16);
 	glfwSetErrorCallback(ErrCallback);
 
-	GLFWwindow* win = glfwCreateWindow(wWidth = 800, wHeight = 600, "你好这里是窗口标题...!", nullptr, nullptr);
+	GLFWwindow* win = glfwCreateWindow(wWidth = 1200, wHeight = 800, "你好这里是窗口标题...!", nullptr, nullptr);
 	glfwMakeContextCurrent(win);
 	gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 	glfwSetFramebufferSizeCallback(win, FramebufferSizeCallback);
 	glfwSetCursorPosCallback(win, CursorPosCallback);
-	return win;
+	this->win = win;
 }
 
-void shutdown(GLFWwindow* win)
-{
-	ImGui_ImplOpenGL3_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
-	ImGui::DestroyContext();
-}
-
-void prepare(GLFWwindow* win)
+void main_loop::prepare()
 {
 #pragma region like_opengl_prepare
 	HWND handle = glfwGetWin32Window(win);
@@ -127,7 +119,7 @@ void prepare(GLFWwindow* win)
 	glGenerateMipmap(GL_TEXTURE_2D);
 	win_res::free(tuple);
 #pragma endregion
-	
+
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	const ImGuiIO io = ImGui::GetIO();
@@ -136,25 +128,62 @@ void prepare(GLFWwindow* win)
 	ImGui_ImplOpenGL3_Init();
 }
 
-bool do_one_frame(GLFWwindow* win)
+main_loop::main_loop()
 {
+	assert(!instance);
+	instance = this;
+}
+
+void main_loop::run()
+{
+	namespace sc = std::chrono;
+	using namespace std::chrono_literals;
+	constexpr sc::duration<float> expected_delta = 1s / 60.0f;
+
+	init();
+	prepare();
+	float pre_delta = 1 / 60.0f;
+	while (!requestedExit)
+	{
+		sc::steady_clock::time_point before = std::chrono::steady_clock::now();
+		update(pre_delta);
+		draw();
+		sc::duration<float> passed = std::chrono::steady_clock::now() - before;
+		sc::duration<float> to_sleep = expected_delta - passed;
+		pre_delta = fmaxf(passed.count(), expected_delta.count());
+		passed_frames++;
+		std::cout << "exp: " << expected_delta.count() << " act: " << passed.count() << std::endl;
+		if (to_sleep >= 0ms)
+			std::this_thread::sleep_for(to_sleep);
+	}
+	shutdown();
+}
+
+static std::string inputStr;
+static float f = 1.0f;
+void main_loop::update(float delta)
+{
+	if (glfwWindowShouldClose(win))
+		requestedExit = true;
+	glfwPollEvents();
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
-	ImGui::ShowDemoWindow();
 
-	//ImGui::Text("Hello, world %d", 123);
-	//ImGui::Button("Save");
-	//char buf[512];
-	//ImGui::InputText("string", buf, IM_ARRAYSIZE(buf));
-	//float f;
-	//ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
+	ImGui::Spacing();
+	glm::vec4 myVec(0.0f, 1.0f, 0.0f, 1.0f);
+	ImGui::TextColored(reinterpret_cast<ImVec4&>(myVec), "Hello I'm colored!");
+	ImGui::InputText("string", &inputStr);
+	ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
+	ImGui::NewLine();
+	if (ImGui::Button("Fuck me"))
+	{
+		std::cout << "fuck content: " << inputStr << std::endl;
+	}
+}
 
-	const std::chrono::steady_clock::time_point pre = std::chrono::steady_clock::now();
-	/// body
-
-	if (glfwWindowShouldClose(win))
-		return false;
+void main_loop::draw()
+{
 	glClearColor(0.1f, 0.2f, 0.1f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glClear(GL_DEPTH_BUFFER_BIT);
@@ -172,9 +201,9 @@ bool do_one_frame(GLFWwindow* win)
 	model = glm::translate(model, glm::vec3(0.0f, 0.0f, -2.0f));
 	//model = glm::rotate(model, 0.0f, glm::vec3(-1.2f, 1.0f, 1.5f));
 
-	view = glm::lookAt(glm::vec3(0.0f, 3.0f, 5.0f), glm::vec3(sinf(v * 2.0f), cosf(v * 2.0f), 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	view = glm::lookAt(glm::vec3(0.0f, 3.0f, 5.0f), glm::vec3(sinf(v), 2.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-	//projection = glm::ortho(-4.0f, 4.0f, -3.0f, 3.0f, 0.01f, 1000.0f);
+	//projection = glm::ortho(-6.0f, 6.0f, -3.0f, 3.0f, 0.01f, 1000.0f);
 	projection = glm::perspective(glm::radians(45.0f), (float)wWidth / wHeight, 0.1f, 1000.0f);
 
 	shader->setMat4("model", model);
@@ -184,7 +213,7 @@ bool do_one_frame(GLFWwindow* win)
 	glBindVertexArray(vaoId);
 
 	for (int i = -5; i < 5; i++)
-		for (int j = -5; j < 5; j++)
+		for (int j = static_cast<int>(-5 * 10 * f); j < 5; j++)
 		{
 			glm::vec3 pos(i, 0.0f, j);
 			model = glm::translate(glm::mat4(1.0f), pos);
@@ -195,29 +224,15 @@ bool do_one_frame(GLFWwindow* win)
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-	glfwPollEvents();
 	glfwSwapBuffers(win);
+}
 
-	/// body end
-	namespace sc = std::chrono;
-	using namespace std::chrono_literals;
-
-	const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-	const auto diff = now - pre;
-	const sc::milliseconds ms = sc::duration_cast<sc::milliseconds>(diff);
-	const sc::milliseconds expected = sc::duration_cast <sc::milliseconds>(1000ms / 120.0f);
-	const sc::milliseconds to_sleep = expected - ms;
-	if (to_sleep >= 0ms)
-		std::this_thread::sleep_for(expected - ms);
-	else
-	{
-		std::cout << "running slowly!" << std::endl;
-		std::cout << "expected: " << expected.count() << "ms" << std::endl;
-		std::cout << "actual: " << ms.count() << "ms" << std::endl;
-	}
-	counter++;
-
-	return true;
+void main_loop::shutdown()
+{
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
+	glfwTerminate();
 }
 
 }
