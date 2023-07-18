@@ -11,6 +11,8 @@
 #include <thread>
 #include <chrono>
 
+#pragma comment(lib, "Winmm")
+
 namespace ggbs {
 
 extern float vertices[180];
@@ -65,11 +67,9 @@ void main_loop::prepare()
 	HMENU menu = GetSystemMenu(handle, false);
 	AppendMenuW(menu, MF_STRING, NULL, L"第一个窗口独有~.");
 
-	auto fsh = win_res::find_and_lock(MAKEINTRESOURCEA(IDR_FSH_SHD1), "SHD");
-	auto vsh = win_res::find_and_lock(MAKEINTRESOURCEA(IDR_VSH_SHD1), "SHD");
-	shader = std::make_unique<Shader>(static_cast<char*>(std::get<0>(vsh)), static_cast<char*>(std::get<0>(fsh)));
-	win_res::free(fsh);
-	win_res::free(vsh);
+	win_res fsh_res(MAKEINTRESOURCEA(IDR_FSH_SHD1), "SHD");
+	win_res vsh_res(MAKEINTRESOURCEA(IDR_VSH_SHD1), "SHD");
+	shader = std::make_unique<Shader>(vsh_res.res_ptr<char>(), fsh_res.res_ptr<char>());
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_MULTISAMPLE);
@@ -95,8 +95,8 @@ void main_loop::prepare()
 	// 加载贴图
 	stbi_set_flip_vertically_on_load(true);
 	int channels;
-	auto tuple = win_res::find_and_lock(MAKEINTRESOURCEA(IDB_PNG1), "PNG");
-	byte* img = stbi_load_from_memory(static_cast<stbi_uc*>(std::get<0>(tuple)), std::get<2>(tuple), &texWidth, &texHeight, &channels, 0);
+	win_res image_res(MAKEINTRESOURCEA(IDB_PNG1), "PNG");
+	byte* img = stbi_load_from_memory(image_res.res_ptr<stbi_uc>(), image_res.res_len(), &texWidth, &texHeight, &channels, 0);
 
 	int align = -1;
 	int total = texWidth * texHeight;
@@ -117,7 +117,6 @@ void main_loop::prepare()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, img);
 	glGenerateMipmap(GL_TEXTURE_2D);
-	win_res::free(tuple);
 #pragma endregion
 
 	IMGUI_CHECKVERSION();
@@ -134,27 +133,48 @@ main_loop::main_loop()
 	instance = this;
 }
 
+void callbacked(HWND hwnd, UINT uint, UINT_PTR ptr, DWORD dw)
+{
+	std::cout << "passed_frames after 1 seconds: " << main_loop::get_ins()->passed_frames << std::endl;
+	main_loop::get_ins()->passed_frames = 0;
+}
+static float fps;
 void main_loop::run()
 {
 	namespace sc = std::chrono;
 	using namespace std::chrono_literals;
-	constexpr sc::duration<float> expected_delta = 1s / 60.0f;
+	constexpr sc::duration<float> expected_delta = 1s / 75.0f;
+
+	timeBeginPeriod(1);
+	int64_t ticks_per_second = 0;
+	int64_t ticks_start = 0;
+	QueryPerformanceFrequency((LARGE_INTEGER*)&ticks_per_second);
+	QueryPerformanceCounter((LARGE_INTEGER*)&ticks_start);
 
 	init();
 	prepare();
 	float pre_delta = 1 / 60.0f;
+	SetTimer(NULL, 0, 1000, callbacked);
 	while (!requestedExit)
 	{
-		sc::steady_clock::time_point before = std::chrono::steady_clock::now();
+		int64_t before_ticks = 0;
+		QueryPerformanceCounter((LARGE_INTEGER*)&before_ticks);
+		before_ticks -= ticks_start;
+
 		update(pre_delta);
 		draw();
-		sc::duration<float> passed = std::chrono::steady_clock::now() - before;
-		sc::duration<float> to_sleep = expected_delta - passed;
-		pre_delta = fmaxf(passed.count(), expected_delta.count());
+
+		int64_t after_ticks = 0;
+		QueryPerformanceCounter((LARGE_INTEGER*)&after_ticks);
+		after_ticks -= ticks_start;
+
+		int64_t expected_ticks_per_second = static_cast<int64_t>(expected_delta.count() * ticks_per_second);
+		int64_t to_sleep_ticks = expected_ticks_per_second - (after_ticks - before_ticks);
+		double to_sleep_ms = (double)to_sleep_ticks / (ticks_per_second / 1000.0);
+
 		passed_frames++;
-		std::cout << "exp: " << expected_delta.count() << " act: " << passed.count() << std::endl;
-		if (to_sleep >= 0ms)
-			std::this_thread::sleep_for(to_sleep);
+		if (to_sleep_ms > 1.0)
+			Sleep((DWORD)to_sleep_ms);
 	}
 	shutdown();
 }
@@ -170,23 +190,25 @@ void main_loop::update(float delta)
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
+	ImGui::Begin("This is title.");
+	ImGui::SetWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
 	ImGui::Spacing();
 	glm::vec4 myVec(0.0f, 1.0f, 0.0f, 1.0f);
-	ImGui::TextColored(reinterpret_cast<ImVec4&>(myVec), "Hello I'm colored!");
+	ImGui::TextColored(reinterpret_cast<ImVec4&>(myVec), "Hello I'm colored! fps: %f", 1.0f / fps);
 	ImGui::InputText("string", &inputStr);
-	ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
+	ImGui::SliderFloat("float", &f, 0.0f, 10.0f);
 	ImGui::NewLine();
 	if (ImGui::Button("Fuck me"))
 	{
 		std::cout << "fuck content: " << inputStr << std::endl;
 	}
+	ImGui::End();
 }
 
 void main_loop::draw()
 {
 	glClearColor(0.1f, 0.2f, 0.1f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glClear(GL_DEPTH_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	shader->use();
 	//绑定纹理
 	glActiveTexture(GL_TEXTURE0);

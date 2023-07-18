@@ -29,12 +29,15 @@ public:
 
 class win_res
 {
+private:
+	LPVOID m_res_ptr;
+	HGLOBAL m_res_handle;
+	DWORD m_len;
+
 public:
-	win_res() = delete;
 	win_res(const win_res& other) = delete;
 	win_res(win_res&& other) = delete;
-
-	static std::tuple<LPVOID, HGLOBAL, DWORD> find_and_lock(LPCSTR resName, LPCSTR resType, HMODULE module = nullptr)
+	win_res(LPCSTR resName, LPCSTR resType, HMODULE module = nullptr)
 	{
 		HMODULE md;
 		if (module != nullptr)
@@ -55,17 +58,20 @@ public:
 			throw bad_resource(resName, resType, false);
 		}
 		LPVOID ptr = LockResource(res);
-		return std::make_tuple(ptr, res, len);
+		m_res_ptr = ptr;
+		m_res_handle = res;
+		m_len = len;
 	}
 
-	static void free(std::tuple<LPVOID, HGLOBAL, DWORD>& resTuple)
+	LPVOID res_ptr() { return m_res_ptr; }
+	template<class TPtr> TPtr* res_ptr() { return (TPtr*)m_res_ptr; }
+	HGLOBAL res_handle() { return m_res_handle; }
+	DWORD res_len() { return m_len; }
+
+	~win_res()
 	{
-		FreeResource(std::get<1>(resTuple));
-		std::get<0>(resTuple) = nullptr;
+		FreeResource(m_res_handle);
 	}
 };
-
-
-
 }
 #endif
